@@ -1,0 +1,179 @@
+task generateJpaRepositories {
+		group 'codegen'
+		doLast {
+				def foundedClasses = findAllClasses('**/*Entity.java');
+				if (foundedClasses != null) {
+						foundedClasses.each { foundedClass ->
+								String jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
+								List<String> packageSegments = jClassPath.tokenize('/')
+								String packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
+								String packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
+								String domainName = packageSegments.takeRight(1).join()
+								def newSuffixedName = domainName.replace('Entity', 'Repository')
+								def newPath = "${packageSlash}/${newSuffixedName}.java"
+								if (!file(newPath).exists()) {
+										file(newPath).withWriter { writer ->
+										writer << "package ${packageDot};\n\n"
+										writer << "import org.springframework.data.jpa.repository.JpaRepository;\n"
+										writer << "import org.springframework.transaction.annotation.Transactional;\n\n"
+										writer << "@Transactional(readOnly = true)\n"
+										writer << "public interface ${newSuffixedName} extends JpaRepository<${domainName}, Long> {\n\n"
+										writer << "}\n"
+									 }
+								}
+						}
+				}
+		}
+}
+
+task generateQueryDslRepositories {
+		group 'codegen'
+		dependsOn generateJpaRepositories
+		doLast {
+				def foundedClasses = findAllClasses('**/*Repository.java');
+				if (foundedClasses != null) {
+						foundedClasses.each { foundedClass ->
+								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
+								def packageSegments = jClassPath.tokenize('/')
+								def packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
+								def packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
+								def domainName = packageSegments.takeRight(1).join()
+								def newPath = "${packageSlash}/${domainName}Custom.java"
+								if (!file(newPath).exists()) {
+										file(newPath).withWriter { writer ->
+										writer << "package ${packageDot};\n\n"
+										writer << "public interface ${domainName}Custom {\n\n"
+										writer << "}\n"
+									 }
+								}
+								newPath = newPath.replace('RepositoryCustom', 'RepositoryImpl')
+								if (!file(newPath).exists()) {
+										file(newPath).withWriter { writer ->
+										writer << "package ${packageDot};\n\n"
+										writer << "import com.querydsl.jpa.impl.JPAQueryFactory;\n\n"
+										writer << "import lombok.RequiredArgsConstructor;\n\n"
+										writer << "@RequiredArgsConstructor\n"
+										writer << "public class ${domainName}Impl implements ${domainName}Custom {\n\n"
+										writer << "  private final JPAQueryFactory qf;\n\n"
+										writer << "}\n"
+									 }
+								}
+								if(foundedClass.text.contains("RepositoryCustom")) return;
+									def lines = []
+									foundedClass.eachLine{ line ->
+										if(line.startsWith("public interface")){
+											int index = line.lastIndexOf("{")
+												lines.add("${line[0..index-1].trim()}, ${domainName}Custom ${line[index..-1]}")
+										}
+										else {
+											lines.add(line)
+										}
+									}
+									lines.add("")
+									foundedClass.write(lines.join("\n"))
+						}
+				}
+		}
+}
+
+task generateDTOs {
+		group 'codegen'
+		doLast {
+				def foundedClasses = findAllClasses('**/*Entity.java');
+				if (foundedClasses != null) {
+						foundedClasses.each { foundedClass ->
+								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
+								def packageSegments = jClassPath.tokenize('/')
+								def packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
+								def packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
+								def domainName = packageSegments.takeRight(1).join()
+								def newSuffixedName = domainName.replace('Entity', 'Dto')
+								def newPath = "${packageSlash}/${newSuffixedName}.java"
+								if (!file(newPath).exists()) {
+										file(newPath).withWriter { writer ->
+										writer << "package ${packageDot};\n\n"
+										writer << "import lombok.Data;\n"
+										writer << "${findAllLines(foundedClass, 'i')}"
+										writer << "@Data\n"
+										writer << "public class ${newSuffixedName} {\n\n"
+										writer << "${findAllLines(foundedClass, 'f')}"
+										writer << "}\n"
+									 }
+								}
+						}
+				}
+		}
+}
+
+task generateServices {
+		group 'codegen'
+		dependsOn generateJpaRepositories
+		doLast {
+				def foundedClasses = findAllClasses('**/*Entity.java');
+				if (foundedClasses != null) {
+						foundedClasses.each { foundedClass ->
+								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
+								def packageSegments = jClassPath.tokenize('/')
+								def packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
+								def packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
+								def domainName = packageSegments.takeRight(1).join()
+								def newSuffixedName = domainName.replace('Entity', 'Svc')
+								def newPath = "${packageSlash}/${newSuffixedName}.java"
+								if (!file(newPath).exists()) {
+										file(newPath).withWriter { writer ->
+										writer << "package ${packageDot};\n\n"
+										writer << "public interface ${newSuffixedName} {\n\n"
+										writer << "}\n"
+									 }
+								}
+								newPath = "${packageSlash}/${newSuffixedName}Impl.java"
+								 domainName = newSuffixedName.replace('Svc', 'Repository')
+								if (!file(newPath).exists()) {
+										file(newPath).withWriter { writer ->
+										writer << "package ${packageDot};\n\n"
+										writer << "import org.springframework.stereotype.Service;\n\n"
+										writer << "import lombok.RequiredArgsConstructor;\n\n"
+										writer << "@Service\n"
+										writer << "@RequiredArgsConstructor\n"
+										writer << "public class ${newSuffixedName}Impl implements ${newSuffixedName} {\n\n"
+										writer << "  private final ${domainName} ${domainName[0].toLowerCase()}r;\n\n"
+										writer << "}\n"
+									 }
+								}
+						}
+				}
+		}
+}
+
+task printTest {
+		group 'codegen'
+		doLast {
+				println "${sourceSets.main.java.srcDirs}"
+		}
+}
+
+def findAllClasses(String pattern){
+		def srcDir = "src/main/java/${project.group.replace('.', '/')}/${project.name}"
+		def classes = []
+
+		fileTree(dir: srcDir, include: pattern).each { file ->
+				classes.add(file)
+		}
+		return classes
+}
+
+def findAllLines(File foundedClass, String kind) {
+		def content = new StringBuilder()
+		def matchingLines = foundedClass.readLines().findAll { line ->
+				if (kind.startsWith('i')) {
+						// line =~ /import\s+\w+(\.\w+)*(\.\*)?;/ && !(line =~ /^\s*\/\/\s*/)
+						line =~ /import\s+(?!jakarta\b|lombok\b)\w+(\.\w+)*(\.\*)?;/ && !(line =~ /^\s*\/\/\s*/)
+				} else if (kind.startsWith('f')) {
+						line =~ /private\s+\w+\s+\w+\s*;/ && !(line =~ /^\s*\/\/\s*/)
+				}
+		}
+		matchingLines.each { strr ->
+				content << "  ${strr.trim()}\n\n"
+		}
+		return content.toString()
+}
