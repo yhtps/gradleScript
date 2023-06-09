@@ -16,12 +16,31 @@ buildscript {
     }
 }
 
+
+
 task writeChangelog {
+    def chnagelogTemplate="""
+    # Changelog
+
+    ---
+
+    ### 
+
+    #### **\\+** : created
+
+    #### **\\*** : modified
+
+    #### **\\-** : deleted
+    """
     group 'codegen'
     doLast {
         def version ="## [${project.version}]"
         def git = Git.open(project.rootDir)
         def changelogFile = new File(project.rootDir, "CHANGELOG.md")
+        if (!changelogFile.exists()||!changelogFile.toString().contains("##")){
+            changelogFile.createNewFile()
+            changelogFile.write(chnagelogTemplate.trim())
+        }
         def changelog="${version}\n\n"
         Iterable<RevCommit> commits = git.log().setMaxCount(50).call()
         commits.each{commit->
