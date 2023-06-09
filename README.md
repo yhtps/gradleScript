@@ -2,6 +2,8 @@
 
 a useful set of gradle scripts
 
+![gif](https://github.com/yhtps/gradleScript/blob/main/scirpts/img/generateQueryDslRepo.gif)
+
 you can apply these scripts on your "build.gradle"
 
 ```gradle
@@ -22,7 +24,7 @@ apply from:"/springJpaCodegen.gradle"
 
 > add task for updating your changelog based on your commit details
 
-**this will overwrite "CHANGELOG.md" if it exits.**
+**this will overwrite “CHANGELOG.md” if it exists or the changelog template does not match the existing.**
 
 [changelogTemplate](https://github.com/yhtps/gradleScript/blob/main/scirpts/writeChangelog.gradle#L22-L34)
 
