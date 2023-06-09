@@ -37,7 +37,7 @@ task writeChangelog {
         def version ="## [${project.version}]"
         def git = Git.open(project.rootDir)
         def changelogFile = new File(project.rootDir, "CHANGELOG.md")
-        if (!changelogFile.exists()||!changelogFile.toString().contains("##")){
+        if (!changelogFile.exists()||!changelogFile.readLines().toString().contains("##")){
             changelogFile.createNewFile()
             changelogFile.write(chnagelogTemplate.trim())
         }
