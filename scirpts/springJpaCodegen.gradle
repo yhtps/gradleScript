@@ -1,15 +1,16 @@
 task generateJpaRepositories {
 		group 'codegen'
 		doLast {
-				def foundedClasses = findAllClasses('**/*Entity.java');
+				def foundedClasses = findAllClasses('@Entity');
 				if (foundedClasses != null) {
 						foundedClasses.each { foundedClass ->
-								String jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
-								List<String> packageSegments = jClassPath.tokenize('/')
-								String packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
-								String packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
-								String domainName = packageSegments.takeRight(1).join()
-								def newSuffixedName = domainName.replace('Entity', 'Repository')
+								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
+								def packageSegments = jClassPath.tokenize('/')
+								def packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
+								def packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
+								def domainName = packageSegments.takeRight(1).join()
+								def newSuffixedName = "${domainName}Repository"								
+								newSuffixedName = newSuffixedName.replace('Entity', '')
 								def newPath = "${packageSlash}/${newSuffixedName}.java"
 								if (!file(newPath).exists()) {
 										file(newPath).withWriter { writer ->
@@ -30,7 +31,7 @@ task generateQueryDslRepositories {
 		group 'codegen'
 		dependsOn generateJpaRepositories
 		doLast {
-				def foundedClasses = findAllClasses('**/*Repository.java');
+				def foundedClasses = findAllClasses('JpaRepository<');
 				if (foundedClasses != null) {
 						foundedClasses.each { foundedClass ->
 								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
@@ -46,7 +47,7 @@ task generateQueryDslRepositories {
 										writer << "}\n"
 									 }
 								}
-								newPath = newPath.replace('RepositoryCustom', 'RepositoryImpl')
+								newPath = newPath.replace("${domainName}Custom", "${domainName}Impl")
 								if (!file(newPath).exists()) {
 										file(newPath).withWriter { writer ->
 										writer << "package ${packageDot};\n\n"
@@ -79,7 +80,7 @@ task generateQueryDslRepositories {
 task generateDTOs {
 		group 'codegen'
 		doLast {
-				def foundedClasses = findAllClasses('**/*Entity.java');
+				def foundedClasses = findAllClasses('@Entity');
 				if (foundedClasses != null) {
 						foundedClasses.each { foundedClass ->
 								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
@@ -87,7 +88,8 @@ task generateDTOs {
 								def packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
 								def packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
 								def domainName = packageSegments.takeRight(1).join()
-								def newSuffixedName = domainName.replace('Entity', 'Dto')
+								def newSuffixedName = "${domainName}Dto"								
+								newSuffixedName = newSuffixedName.replace('Entity', '')
 								def newPath = "${packageSlash}/${newSuffixedName}.java"
 								if (!file(newPath).exists()) {
 										file(newPath).withWriter { writer ->
@@ -109,7 +111,7 @@ task generateServices {
 		group 'codegen'
 		dependsOn generateJpaRepositories
 		doLast {
-				def foundedClasses = findAllClasses('**/*Entity.java');
+				def foundedClasses = findAllClasses('@Entity');
 				if (foundedClasses != null) {
 						foundedClasses.each { foundedClass ->
 								def jClassPath= project.relativePath(foundedClass).replace('\\', '/') -'.java'
@@ -117,7 +119,8 @@ task generateServices {
 								def packageSlash = packageSegments.take(packageSegments.size() - 1).join('/')
 								def packageDot = packageSlash.replace('src/main/java/','').replace('/', '.')
 								def domainName = packageSegments.takeRight(1).join()
-								def newSuffixedName = domainName.replace('Entity', 'Svc')
+								def newSuffixedName = "${domainName}Svc"								
+								newSuffixedName = newSuffixedName.replace('Entity', '')
 								def newPath = "${packageSlash}/${newSuffixedName}.java"
 								if (!file(newPath).exists()) {
 										file(newPath).withWriter { writer ->
@@ -148,23 +151,27 @@ task generateServices {
 task printTest {
 		group 'codegen'
 		doLast {
-				println "${sourceSets.main.java.srcDirs}"
+				def foundedClasses = findAllClasses('@Entity');
+				foundedClasses.each {fc -> def asdad= fc
+				println "${asdad}"
+				}
+				// println "${sourceSets.main.java.srcDirs}"
 		}
 }
 
-def findAllClasses(String pattern){
+def findAllClasses(String str){
 		def srcDir = "src/main/java/${project.group.replace('.', '/')}/${project.name}"
 		def classes = []
 
-		fileTree(dir: srcDir, include: pattern).each { file ->
-				classes.add(file)
+		fileTree(dir: srcDir, include: "**/*.java").each { file ->
+				if(getQualifiedContent(file.text).contains(str)) classes.add(file)
 		}
 		return classes
 }
 
 def findAllLines(File foundedClass, String kind) {
 		def content = new StringBuilder()
-		def matchingLines = foundedClass.readLines().findAll { line ->
+		def matchingLines = getQualifiedContent(foundedClass.text).readLines().findAll { line ->
 				if (kind.startsWith('i')) {
 						// line =~ /import\s+\w+(\.\w+)*(\.\*)?;/ && !(line =~ /^\s*\/\/\s*/)
 						line =~ /import\s+(?!jakarta\b|lombok\b)\w+(\.\w+)*(\.\*)?;/ && !(line =~ /^\s*\/\/\s*/)
@@ -176,4 +183,13 @@ def findAllLines(File foundedClass, String kind) {
 				content << "  ${strr.trim()}\n\n"
 		}
 		return content.toString()
+}
+
+def getQualifiedContent(String content) {
+		content=content.replaceAll(/\t/, "")
+		content=content.replaceAll(/\/[^\/]*\*\//, "")
+		content=content.replaceAll(/\/\/.*/, "")
+		content=content.replaceAll(/("[^"]*"|'[^']*')/, "")
+		content=content.replaceAll(/@Entity\w+/, "")
+    return content
 }

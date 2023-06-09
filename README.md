@@ -16,7 +16,7 @@ apply from:"/springJpaCodegen.gradle"
 
 > add task for generating spring jpa related mvc code
 
-**this will generate code from files with the suffix "\*\*Entity.java".**
+**this will generate code based on the entity".**
 
 [writeChangelog.gradle](https://github.com/yhtps/gradleScript/blob/main/scirpts/writeChangelog.gradle)
 
